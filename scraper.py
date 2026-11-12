@@ -38,7 +38,7 @@ class YTMScraper:
             return songs
 
         playlist_url = self.normalize_playlist_url(playlist_id)
-        logging.info(f"Extracting candidate tracks from playlist: {playlist_url}")
+        logging.info(f"Extracting candidate tracks from: {playlist_url}")
 
         try:
             import yt_dlp
@@ -49,8 +49,26 @@ class YTMScraper:
                 'noplaylist': False
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(playlist_url, download=False)
-                entries = info.get('entries') or []
+                info = None
+                try:
+                    info = ydl.extract_info(playlist_url, download=False)
+                except Exception as pe:
+                    # If playlist extraction fails but input contains a video link, fallback to single track
+                    if "v=" in playlist_id or "youtu.be/" in playlist_id or "/watch" in playlist_id:
+                        logging.warning(f"Playlist extraction failed ({pe}). Falling back to extracting single track from URL...")
+                        ydl_single = yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True, 'noplaylist': True})
+                        info = ydl_single.extract_info(playlist_id, download=False)
+                    else:
+                        raise pe
+
+                if not info:
+                    return songs
+
+                entries = info.get('entries')
+                if entries is None:
+                    # Single video track
+                    entries = [info]
+
                 for entry in entries[:limit]:
                     if not entry:
                         continue
@@ -60,7 +78,7 @@ class YTMScraper:
                         url = f"https://www.youtube.com/watch?v={url}"
                     
                     title = entry.get('title', 'Unknown Track')
-                    uploader = entry.get('uploader') or entry.get('channel') or 'Various'
+                    uploader = entry.get('uploader') or entry.get('channel') or entry.get('artist') or 'Various'
 
                     songs.append({
                         "title": title,
@@ -70,7 +88,7 @@ class YTMScraper:
                         "duration_seconds": entry.get('duration') or 0
                     })
 
-                logging.info(f"Loaded {len(songs)} tracks from playlist '{info.get('title', 'Playlist')}'")
+                logging.info(f"Loaded {len(songs)} track(s) from '{info.get('title', 'Unknown')}'")
         except Exception as e:
             logging.error(f"Failed to extract playlist: {e}")
 

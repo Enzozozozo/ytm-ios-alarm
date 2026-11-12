@@ -23,6 +23,7 @@ output/
 *.opus
 *.webm
 *.mp3
+*.log
 
 # IDE & OS
 .vscode/
