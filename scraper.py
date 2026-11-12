@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -39,16 +39,58 @@ class YTMScraper:
             self.ytm = None
             self._is_authenticated = False
 
-    def get_top_songs(self, limit: int = 7) -> List[Dict[str, Any]]:
+    @staticmethod
+    def extract_playlist_id(raw_input: str) -> str:
+        """Extracts the clean playlist ID from a raw ID or full YouTube / YouTube Music URL."""
+        raw_input = raw_input.strip()
+        if "list=" in raw_input:
+            import urllib.parse
+            parsed = urllib.parse.urlparse(raw_input)
+            params = urllib.parse.parse_qs(parsed.query)
+            if "list" in params and params["list"]:
+                return params["list"][0]
+        return raw_input
+
+    def get_top_songs(self, limit: int = 7, playlist_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Fetches top listened tracks from user's history/recap.
-        Falls back to trending/popular if auth is unavailable or expired.
+        Fetches candidate songs from:
+        1. An unlisted/public playlist (if playlist_id provided) - 100% unauthenticated & safe
+        2. User playback history (if authenticated)
+        3. YouTube Music trending charts (fallback)
         """
         songs = []
         if not self.ytm:
             return songs
 
-        # 1. Try authenticated personal history if credentials present
+        # 1. Fetch from Unlisted / Public Playlist if provided (No Google account required)
+        if playlist_id:
+            clean_id = self.extract_playlist_id(playlist_id)
+            if clean_id:
+                try:
+                    logging.info(f"Fetching candidate tracks from unlisted/public playlist (ID: {clean_id})...")
+                    playlist_data = self.ytm.get_playlist(clean_id)
+                    tracks = playlist_data.get("tracks", [])
+                    # Reverse so recently added songs appear first
+                    for item in reversed(tracks):
+                        video_id = item.get("videoId")
+                        if video_id:
+                            artists = ", ".join([a.get("name", "") for a in item.get("artists", [])])
+                            songs.append({
+                                "title": item.get("title", "Unknown Track"),
+                                "artist": artists,
+                                "video_id": video_id,
+                                "url": f"https://music.youtube.com/watch?v={video_id}",
+                                "duration_seconds": 0
+                            })
+                        if len(songs) >= limit:
+                            break
+                    if songs:
+                        logging.info(f"Loaded {len(songs)} tracks from playlist '{playlist_data.get('title', clean_id)}'")
+                        return songs
+                except Exception as e:
+                    logging.warning(f"Failed to fetch playlist '{clean_id}': {e}. Falling back...")
+
+        # 2. Try authenticated personal history if credentials present
         if self._is_authenticated:
             try:
                 logging.info("Fetching user history / top tracks...")

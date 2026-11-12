@@ -64,28 +64,31 @@ This will guide you to paste your request headers from `music.youtube.com` into 
 
 ## ☁️ Running 100% Cloud-Native (GitHub Actions)
 
-If you want the entire process to run automatically with **all your personal computers powered off**:
+If you want the entire process to run automatically with **all your personal computers powered off** and **zero risk to your Google account**:
 
-### 1. Push this repository to GitHub
-Initialize and push this repo to your private or public GitHub account.
+### 1. Create an Unlisted YouTube Music Playlist
+1. Open [music.youtube.com](https://music.youtube.com) or the YouTube Music app on your phone.
+2. Create a new playlist called **"Alarm Songs"** and set its privacy to **Unlisted**.
+3. Add a few songs you like to it.
+4. Copy the playlist URL or Playlist ID from the share button (e.g. `https://music.youtube.com/playlist?list=PL...` or `PL...`).
 
-### 2. Add your YouTube Music Auth Secret
-1. Run `python auth_setup.py` locally once to generate `oauth.json`.
-2. Open `oauth.json` and copy its entire text.
-3. On GitHub, go to **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
-4. Name the secret:
-   ```
-   YTM_OAUTH_JSON
-   ```
-5. Paste the contents of `oauth.json` and click **Add secret**.
+### 2. Configure Your GitHub Repository
+1. In your GitHub repository:
+   * Go to **Settings** → **Secrets and variables** → **Actions** → **Variables** tab (or **Secrets** tab).
+   * Click **New repository variable** (or secret).
+   * **Name**: `YTM_PLAYLIST_ID`
+   * **Value**: Paste your playlist URL or ID.
+   * Click **Add variable**.
+*(Because the playlist is unlisted, the GitHub runner queries it completely anonymously. No Google account login, session cookies, or passwords are used!)*
 
 ### 3. Automated Release & Direct iPhone Download
 The workflow [`.github/workflows/generate-alarm.yml`](.github/workflows/generate-alarm.yml) runs every day at 21:00 UTC (or on-demand via **Run workflow**):
-- Downloads your top track on GitHub's cloud servers.
+- Fetches the most recently added songs from your unlisted playlist.
+- Downloads the audio track on GitHub's cloud servers.
 - Trims the 30s peak chorus using `ffmpeg`.
 - Publishes the file to a permanent GitHub Release under tag `latest`.
 
-#### Direct iPhone Shortcuts Action (No local computer needed!):
+#### Direct iPhone Shortcuts Action:
 In your iOS Shortcut automation:
 1. Action: **Get Contents of URL** → `https://github.com/<YOUR_GITHUB_USERNAME>/ytm-ios-alarm/releases/latest/download/alarm.m4a`
    *(If the repo is private, add a Header: `Authorization` with value `Bearer <GITHUB_PERSONAL_ACCESS_TOKEN>`)*
