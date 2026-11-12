@@ -6,6 +6,8 @@
   "output_dir": "./output",
   "icloud_sync_dir": "C:/Users/tayen/iCloudDrive/Shortcuts",
   "playlist_id": "",
+  "github_repo": "Enzozozozo/ytm-ios-alarm",
+  "github_token": "",
   "download_delay_seconds": 3,
   "fallback_songs": [
     "https://music.youtube.com/watch?v=dQw4w9WgXcQ"
