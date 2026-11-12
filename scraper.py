@@ -70,8 +70,8 @@ class YTMScraper:
                     logging.info(f"Fetching candidate tracks from unlisted/public playlist (ID: {clean_id})...")
                     playlist_data = self.ytm.get_playlist(clean_id)
                     tracks = playlist_data.get("tracks", [])
-                    # Reverse so recently added songs appear first
-                    for item in reversed(tracks):
+                    # Follow playlist order (Song #1 is the primary alarm target)
+                    for item in tracks:
                         video_id = item.get("videoId")
                         if video_id:
                             artists = ", ".join([a.get("name", "") for a in item.get("artists", [])])
@@ -82,7 +82,8 @@ class YTMScraper:
                                 "url": f"https://music.youtube.com/watch?v={video_id}",
                                 "duration_seconds": 0
                             })
-                        if len(songs) >= limit:
+                        if len(songs) >= max(limit, 50):
+                            break
                             break
                     if songs:
                         logging.info(f"Loaded {len(songs)} tracks from playlist '{playlist_data.get('title', clean_id)}'")
