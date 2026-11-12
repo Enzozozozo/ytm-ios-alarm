@@ -1,6 +1,6 @@
 # ytm-ios-alarm ⏰🎵
 
-Automated CI/CD audio pipeline that fetches your top listened-to tracks on YouTube Music, extracts the most energetic 30-second chorus snippet via RMS analysis, formats it as an iOS-compatible audio alarm (`alarm.m4a`), and delivers it directly to Apple Shortcuts via GitHub Releases or iCloud Drive.
+Automated CI/CD audio pipeline that fetches your tracks on YouTube Music, deterministically shuffles them daily, extracts the peak 15-second section with highest mean dB (loudest RMS energy window), formats it as an iOS-compatible audio alarm (`alarm.m4a`), and delivers it directly to Apple Shortcuts via GitHub Releases or iCloud Drive.
 
 ---
 
@@ -12,20 +12,23 @@ Automated CI/CD audio pipeline that fetches your top listened-to tracks on YouTu
        ▼ (1. Fetch Playlist Tracks via yt-dlp)
 [Metadata Extractor: track titles, video IDs]
        │
-       ▼ (2. Audio Downloader: yt-dlp)
+       ▼ (2. Daily Shuffle: Deterministic calendar shuffle)
+[Select primary track of the day]
+       │
+       ▼ (3. Audio Downloader: yt-dlp)
 [Raw Track Audio (.m4a / .opus)]
        │
-       ▼ (3. Snippet Locator & Trimmer: ffmpeg / pydub)
-[Detect loudest/highest RMS 30s chorus window]
+       ▼ (4. Snippet Locator & Trimmer: ffmpeg / pydub)
+[Detect loudest/highest mean dB 15s chorus window]
        │
-       ▼ (4. iOS Exporter)
-[alarm.m4a / alarm.m4r with cross-fade]
+       ▼ (5. iOS Exporter)
+[alarm.m4a with cross-fade]
        │
-       ▼ (5. Cloud Sync)
-[iCloud Drive / Shortcuts / Dropbox]
+       ▼ (6. Cloud Sync)
+[GitHub Releases / iCloud Drive / Shortcuts]
        │
-       ▼ (6. Native iOS Automation)
-[iPhone: Shortcuts Automation triggers alarm at scheduled time]
+       ▼ (7. Native iOS Automation)
+[iPhone: Shortcuts Automation pulls and plays alarm at scheduled time]
 ```
 
 ---
@@ -57,11 +60,11 @@ pip install git+https://github.com/Enzozozozo/ytm-ios-alarm.git
 
 Run from anywhere in your terminal:
 ```bash
-# Generate 30s chorus from an unlisted/public playlist
+# Generate 15s chorus from an unlisted/public playlist
 ytm-ios-alarm --playlist "https://music.youtube.com/playlist?list=PL..."
 
 # Customize duration and output location
-ytm-ios-alarm --playlist "PL..." --duration 45 --output-dir ~/Desktop
+ytm-ios-alarm --playlist "PL..." --duration 15 --output-dir ~/Desktop
 ```
 
 ---
@@ -93,7 +96,7 @@ If you want the entire process to run automatically with **all your personal com
 The workflow [`.github/workflows/generate-alarm.yml`](.github/workflows/generate-alarm.yml) runs every day at 21:00 UTC (or on-demand via **Run workflow**):
 - Fetches the most recently added songs from your unlisted playlist.
 - Downloads the audio track on GitHub's cloud servers.
-- Trims the 30s peak chorus using `ffmpeg`.
+- Trims the 15s peak chorus (highest mean dB) using `ffmpeg` & `pydub`.
 - Publishes the file to a permanent GitHub Release under tag `latest`.
 
 #### Direct iPhone Shortcuts Action:

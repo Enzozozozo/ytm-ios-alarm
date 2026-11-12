@@ -1,8 +1,8 @@
 {
   "top_songs_count": 50,
-  "snippet_duration_seconds": 30,
-  "fade_in_ms": 1500,
-  "fade_out_ms": 2000,
+  "snippet_duration_seconds": 15,
+  "fade_in_ms": 1000,
+  "fade_out_ms": 1000,
   "output_dir": "./output",
   "icloud_sync_dir": "C:/Users/tayen/iCloudDrive/Shortcuts",
   "playlist_id": "",

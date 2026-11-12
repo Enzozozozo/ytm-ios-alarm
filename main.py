@@ -22,7 +22,7 @@ def parse_args():
         description="Extracts peak energetic chorus snippets from YouTube Music into iOS alarms."
     )
     parser.add_argument("-p", "--playlist", help="YouTube Music unlisted or public playlist URL/ID")
-    parser.add_argument("-d", "--duration", type=int, help="Snippet duration in seconds (default: 30)")
+    parser.add_argument("-d", "--duration", type=int, help="Snippet duration in seconds (default: 15)")
     parser.add_argument("-o", "--output-dir", help="Directory where alarm.m4a is saved (default: ./output)")
     parser.add_argument("-c", "--config", help="Custom config.json path")
     parser.add_argument("-n", "--limit", type=int, help="Max candidate songs to evaluate (default: 7)")
@@ -124,7 +124,7 @@ def run(args=None):
 
     config = load_config(args.config)
     top_n = args.limit or config.get("top_songs_count", 7)
-    duration = args.duration or config.get("snippet_duration_seconds", 30)
+    duration = args.duration or config.get("snippet_duration_seconds", 15)
     output_dir = args.output_dir or config.get("output_dir", "./output")
     icloud_dir = config.get("icloud_sync_dir", "")
     delay_sec = config.get("download_delay_seconds", 3)
@@ -157,18 +157,22 @@ def run(args=None):
     for i, s in enumerate(top_songs, 1):
         print(f"  {i}. {s['title']} - {s['artist']}")
 
-    # 2. Daily rotation: Rotate candidates so the primary song changes every single day
+    # 2. Daily shuffle: Deterministic pseudorandom daily shuffle based on today's calendar date
+    # Ensures a fresh random track each day while being idempotent across runs on the same date.
     import datetime
-    day_offset = datetime.date.today().toordinal() % len(top_songs)
-    ordered_candidates = top_songs[day_offset:] + top_songs[:day_offset]
-    print(f"\n[Today's Primary Track Selection (Day offset: {day_offset})]: {ordered_candidates[0]['title']}")
+    import random
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    rng = random.Random(today_str)
+    ordered_candidates = list(top_songs)
+    rng.shuffle(ordered_candidates)
+    print(f"\n[Today's Daily Shuffle Selection ({today_str})]: {ordered_candidates[0]['title']}")
 
     # 3. Resilient Track Processing Loop
     downloader = AudioDownloader(download_dir="./downloads", delay_seconds=delay_sec)
     processor = AudioProcessor(
         snippet_duration_sec=duration,
         fade_in_ms=config.get("fade_in_ms", 1000),
-        fade_out_ms=config.get("fade_out_ms", 1500)
+        fade_out_ms=config.get("fade_out_ms", 1000)
     )
 
     final_alarm_file = os.path.join(output_dir, "alarm.m4a")

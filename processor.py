@@ -5,52 +5,52 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 class AudioProcessor:
-    def __init__(self, snippet_duration_sec: int = 30, fade_in_ms: int = 1000, fade_out_ms: int = 1500):
+    def __init__(self, snippet_duration_sec: int = 15, fade_in_ms: int = 1000, fade_out_ms: int = 1000):
         self.snippet_duration_sec = snippet_duration_sec
         self.fade_in_ms = fade_in_ms
         self.fade_out_ms = fade_out_ms
 
-    def find_peak_energy_window(self, audio_segment, window_ms: int) -> int:
+    def find_peak_energy_window(self, audio_segment, window_ms: int) -> tuple[int, float]:
         """
-        Calculates Root-Mean-Square (RMS) loudness across sliding windows
-        to identify the loudest/most energetic part (typically the chorus/drop).
+        Calculates Root-Mean-Square (RMS) loudness / mean dBFS across sliding windows
+        in 500ms steps to identify the 15-second section with the highest mean dB.
         """
-        step_ms = 1000  # 1-second steps
+        step_ms = 500  # Fine-grained 0.5-second steps for high precision
         total_len = len(audio_segment)
         if total_len <= window_ms:
-            return 0
+            return 0, audio_segment.dBFS
 
-        max_rms = -1
+        max_db = -float("inf")
         best_start = 0
 
-        # Don't pick the first 15 seconds if the track is reasonably long (avoids quiet intros)
-        search_start = min(15000, total_len // 4)
+        # Avoid the first 5 seconds to bypass silent lead-in / intro clicks
+        search_start = min(5000, total_len // 6)
         search_end = total_len - window_ms
 
         for start in range(search_start, search_end, step_ms):
             chunk = audio_segment[start:start + window_ms]
-            rms = chunk.rms
-            if rms > max_rms:
-                max_rms = rms
+            db = chunk.dBFS
+            if db > max_db:
+                max_db = db
                 best_start = start
 
-        return best_start
+        return best_start, max_db
 
     def extract_snippet(self, audio_file_path: str, output_path: str) -> Optional[str]:
         """
-        Extracts the peak 30s audio snippet, applies fading, and exports
-        as an iOS-compatible AAC/m4a file.
+        Extracts the peak 15s audio snippet with highest mean dB, applies smooth fading,
+        and exports as an iOS-compatible AAC/m4a file.
         """
         try:
             from pydub import AudioSegment
-            logging.info(f"Loading {audio_file_path} for snippet extraction...")
+            logging.info(f"Loading {audio_file_path} for 15s peak dB snippet extraction...")
             audio = AudioSegment.from_file(audio_file_path)
 
             window_ms = self.snippet_duration_sec * 1000
-            start_ms = self.find_peak_energy_window(audio, window_ms)
+            start_ms, peak_db = self.find_peak_energy_window(audio, window_ms)
             end_ms = min(len(audio), start_ms + window_ms)
 
-            logging.info(f"Peak energy window detected at {start_ms // 1000}s - {end_ms // 1000}s")
+            logging.info(f"15s peak loudness window: {start_ms / 1000:.1f}s - {end_ms / 1000:.1f}s (Mean loudness: {peak_db:.1f} dBFS)")
             snippet = audio[start_ms:end_ms]
 
             # Apply smooth crossfades
