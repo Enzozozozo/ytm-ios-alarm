@@ -57,10 +57,14 @@ class AudioProcessor:
             snippet = snippet.fade_in(self.fade_in_ms).fade_out(self.fade_out_ms)
 
             # Ensure output folder exists
-            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            out_dir = os.path.dirname(os.path.abspath(output_path))
+            os.makedirs(out_dir, exist_ok=True)
 
-            # Export as m4a / AAC for native iOS playback
-            snippet.export(output_path, format="ipod")
+            # Export atomically via temporary file to prevent corrupted partial artifacts
+            tmp_path = os.path.join(out_dir, f".tmp_{os.path.basename(output_path)}")
+            snippet.export(tmp_path, format="ipod")
+            os.replace(tmp_path, output_path)
+
             logging.info(f"Alarm snippet saved to: {output_path}")
             return output_path
         except Exception as e:

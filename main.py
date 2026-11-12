@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import shutil
 import logging
@@ -26,6 +27,7 @@ def run():
     output_dir = config.get("output_dir", "./output")
     icloud_dir = config.get("icloud_sync_dir", "")
     auth_file = config.get("auth_file", "oauth.json")
+    delay_sec = config.get("download_delay_seconds", 3)
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -46,26 +48,14 @@ def run():
 
     if not top_songs:
         logging.error("No songs available to process. Exiting.")
-        return
+        sys.exit(1)
 
     print(f"\n[Found {len(top_songs)} Candidate Songs]:")
     for i, s in enumerate(top_songs, 1):
         print(f"  {i}. {s['title']} - {s['artist']}")
 
-    # 2. Pick the #1 Most Listened-To Song (or primary target)
-    target_song = top_songs[0]
-    print(f"\n[Selecting Top Track]: {target_song['title']} ({target_song['url']})")
-
-    # 3. Download Audio
-    delay_sec = config.get("download_delay_seconds", 3)
+    # 2. Resilient Track Processing Loop
     downloader = AudioDownloader(download_dir="./downloads", delay_seconds=delay_sec)
-    raw_audio_path = downloader.download_track(target_song['url'], output_name="target_track")
-
-    if not raw_audio_path or not os.path.exists(raw_audio_path):
-        logging.error("Failed to download audio file.")
-        return
-
-    # 4. Extract Peak 30s Snippet & Convert for iOS
     processor = AudioProcessor(
         snippet_duration_sec=duration,
         fade_in_ms=config.get("fade_in_ms", 1000),
@@ -73,22 +63,37 @@ def run():
     )
 
     final_alarm_file = os.path.join(output_dir, "alarm.m4a")
-    snippet_path = processor.extract_snippet(raw_audio_path, final_alarm_file)
+    success = False
 
-    if not snippet_path:
-        logging.error("Failed to generate alarm snippet.")
-        return
+    for idx, target_song in enumerate(top_songs, 1):
+        print(f"\n[Attempting Track {idx}/{len(top_songs)}]: {target_song['title']} ({target_song['url']})")
+        
+        raw_audio_path = downloader.download_track(target_song['url'], output_name=f"track_candidate_{idx}")
+        if not raw_audio_path or not os.path.exists(raw_audio_path):
+            logging.warning(f"Download failed for '{target_song['title']}'. Trying next candidate...")
+            continue
 
-    print(f"\n✅ Successfully generated alarm snippet: {final_alarm_file}")
+        snippet_path = processor.extract_snippet(raw_audio_path, final_alarm_file)
+        if not snippet_path:
+            logging.warning(f"Audio snippet extraction failed for '{target_song['title']}'. Trying next candidate...")
+            continue
 
-    # 5. Sync to iCloud Drive if path exists
+        print(f"\n✅ Successfully generated alarm snippet from: {target_song['title']}")
+        success = True
+        break
+
+    if not success:
+        logging.error("All candidate tracks failed processing.")
+        sys.exit(1)
+
+    # 3. Sync to iCloud Drive if path exists
     if icloud_dir and os.path.exists(icloud_dir):
         dest_path = os.path.join(icloud_dir, "alarm.m4a")
         shutil.copyfile(final_alarm_file, dest_path)
         print(f"☁️ Synced to iCloud Shortcuts directory: {dest_path}")
     else:
-        print(f"ℹ️ iCloud directory '{icloud_dir}' not detected or not configured yet.")
-        print(f"   You can manually copy '{final_alarm_file}' to your iPhone via iCloud Drive, AirDrop, or Telegram/Drive.")
+        print(f"ℹ️ iCloud directory '{icloud_dir}' not detected or not configured.")
+        print(f"   Exported alarm artifact ready at: {final_alarm_file}")
 
     print("\n'ytm-ios-alarm' pipeline finished successfully.")
 

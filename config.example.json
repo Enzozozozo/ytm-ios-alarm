@@ -7,7 +7,6 @@
   "icloud_sync_dir": "C:/Users/tayen/iCloudDrive/Shortcuts",
   "auth_file": "oauth.json",
   "download_delay_seconds": 3,
-  "selection_strategy": "peak_energy",
   "fallback_songs": [
     "https://music.youtube.com/watch?v=dQw4w9WgXcQ"
   ]

@@ -42,18 +42,17 @@ class YTMScraper:
     def get_top_songs(self, limit: int = 7) -> List[Dict[str, Any]]:
         """
         Fetches top listened tracks from user's history/recap.
-        Falls back to trending/popular if auth is unavailable.
+        Falls back to trending/popular if auth is unavailable or expired.
         """
         songs = []
         if not self.ytm:
             return songs
 
-        try:
-            # Try fetching user history or playlists
-            if self._is_authenticated:
+        # 1. Try authenticated personal history if credentials present
+        if self._is_authenticated:
+            try:
                 logging.info("Fetching user history / top tracks...")
                 history = self.ytm.get_history()
-                # Aggregate frequency or top plays
                 seen = set()
                 for item in history:
                     video_id = item.get("videoId")
@@ -69,8 +68,15 @@ class YTMScraper:
                         })
                     if len(songs) >= limit:
                         break
-            else:
-                logging.info("No credentials provided. Fetching top trending tracks...")
+            except Exception as e:
+                logging.warning(f"Failed to fetch user history (session may be expired or challenged): {e}")
+                logging.info("Degrading gracefully to public trending charts...")
+                songs = []
+
+        # 2. Fall back to trending tracks if history returned nothing
+        if not songs:
+            try:
+                logging.info("Fetching top trending tracks from charts...")
                 charts = self.ytm.get_charts(country="US")
                 top_tracks = charts.get("videos", {}).get("items", []) or charts.get("tracks", {}).get("items", [])
                 for item in top_tracks[:limit]:
@@ -81,9 +87,10 @@ class YTMScraper:
                             "title": item.get("title", "Unknown Track"),
                             "artist": artists,
                             "video_id": video_id,
-                            "url": f"https://music.youtube.com/watch?v={video_id}"
+                            "url": f"https://music.youtube.com/watch?v={video_id}",
+                            "duration_seconds": 0
                         })
-        except Exception as e:
-            logging.error(f"Error fetching top songs from YouTube Music: {e}")
+            except Exception as e:
+                logging.error(f"Error fetching trending charts from YouTube Music: {e}")
 
         return songs

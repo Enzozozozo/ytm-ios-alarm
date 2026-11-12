@@ -32,9 +32,11 @@ class AudioDownloader:
                 'no_warnings': True,
                 'extract_audio': True,
                 'noplaylist': True,
-                'sleep_interval': self.delay_seconds,  # Pre-download sleep
-                'max_sleep_interval': self.delay_seconds + 2,  # Jitter to simulate human behavior
-                'sleep_interval_requests': 1  # Throttle individual HTTP requests
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['ios', 'android']  # Emulates mobile clients to bypass web botguard challenges
+                    }
+                }
             }
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
