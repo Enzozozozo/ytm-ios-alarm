@@ -4,7 +4,7 @@ import sys
 
 def setup():
     print("=" * 60)
-    print("YouTube Music Auth Setup for 'The Alarm Demon'")
+    print("YouTube Music Auth Setup for 'ytm-ios-alarm'")
     print("=" * 60)
     print("\nTo access your private Top Songs and Listening History:")
     print("1. Open Chrome/Edge/Firefox and log in to https://music.youtube.com")

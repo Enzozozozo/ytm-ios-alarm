@@ -1,6 +1,6 @@
-# The Alarm Demon 😈⏰
+# ytm-ios-alarm ⏰🎵
 
-Automated pipeline that fetches your top listened-to tracks on YouTube Music, extracts the most energetic/listened-to 30-second snippet, formats it as an iOS-compatible audio alarm, and pushes it to your iCloud Drive (or cloud folder) for automated wake-up triggers via Apple Shortcuts.
+Automated CI/CD audio pipeline that fetches your top listened-to tracks on YouTube Music, extracts the most energetic 30-second chorus snippet via RMS analysis, formats it as an iOS-compatible audio alarm (`alarm.m4a`), and delivers it directly to Apple Shortcuts via GitHub Releases or iCloud Drive.
 
 ---
 
@@ -87,7 +87,7 @@ The workflow [`.github/workflows/generate-alarm.yml`](.github/workflows/generate
 
 #### Direct iPhone Shortcuts Action (No local computer needed!):
 In your iOS Shortcut automation:
-1. Action: **Get Contents of URL** → `https://github.com/<YOUR_GITHUB_USERNAME>/<REPO_NAME>/releases/latest/download/alarm.m4a`
+1. Action: **Get Contents of URL** → `https://github.com/<YOUR_GITHUB_USERNAME>/ytm-ios-alarm/releases/latest/download/alarm.m4a`
    *(If the repo is private, add a Header: `Authorization` with value `Bearer <GITHUB_PERSONAL_ACCESS_TOKEN>`)*
 2. Action: **Save File** (optional, saves to `Shortcuts/alarm.m4a` for offline playback).
 3. Action: **Play Sound**.

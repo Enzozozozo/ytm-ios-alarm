@@ -17,7 +17,7 @@ def load_config():
 
 def run():
     print("=" * 60)
-    print("😈 Starting 'The Alarm Demon' Pipeline 😈")
+    print("Starting 'ytm-ios-alarm' Pipeline")
     print("=" * 60)
 
     config = load_config()
@@ -89,7 +89,7 @@ def run():
         print(f"ℹ️ iCloud directory '{icloud_dir}' not detected or not configured yet.")
         print(f"   You can manually copy '{final_alarm_file}' to your iPhone via iCloud Drive, AirDrop, or Telegram/Drive.")
 
-    print("\n😈 The Alarm Demon finished execution.")
+    print("\n'ytm-ios-alarm' pipeline finished successfully.")
 
 if __name__ == "__main__":
     run()
