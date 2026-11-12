@@ -3,32 +3,50 @@ import sys
 import json
 import shutil
 import logging
+import argparse
 from scraper import YTMScraper
 from downloader import AudioDownloader
 from processor import AudioProcessor
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-def load_config():
-    config_file = "config.json"
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog="ytm-ios-alarm",
+        description="Extracts peak energetic chorus snippets from YouTube Music into iOS alarms."
+    )
+    parser.add_argument("-p", "--playlist", help="YouTube Music unlisted or public playlist URL/ID")
+    parser.add_argument("-d", "--duration", type=int, help="Snippet duration in seconds (default: 30)")
+    parser.add_argument("-o", "--output-dir", help="Directory where alarm.m4a is saved (default: ./output)")
+    parser.add_argument("-c", "--config", help="Custom config.json path")
+    parser.add_argument("-n", "--limit", type=int, help="Max candidate songs to evaluate (default: 7)")
+    return parser.parse_args()
+
+def load_config(config_path=None):
+    config_file = config_path or "config.json"
     if not os.path.exists(config_file):
         config_file = "config.example.json"
-    with open(config_file, "r", encoding="utf-8") as f:
-        return json.load(f)
+    if os.path.exists(config_file):
+        with open(config_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
-def run():
+def run(args=None):
+    if args is None:
+        args = parse_args()
+
     print("=" * 60)
     print("Starting 'ytm-ios-alarm' Pipeline")
     print("=" * 60)
 
-    config = load_config()
-    top_n = config.get("top_songs_count", 7)
-    duration = config.get("snippet_duration_seconds", 30)
-    output_dir = config.get("output_dir", "./output")
+    config = load_config(args.config)
+    top_n = args.limit or config.get("top_songs_count", 7)
+    duration = args.duration or config.get("snippet_duration_seconds", 30)
+    output_dir = args.output_dir or config.get("output_dir", "./output")
     icloud_dir = config.get("icloud_sync_dir", "")
     auth_file = config.get("auth_file", "oauth.json")
     delay_sec = config.get("download_delay_seconds", 3)
-    playlist_id = os.environ.get("YTM_PLAYLIST_ID") or config.get("playlist_id", "")
+    playlist_id = args.playlist or os.environ.get("YTM_PLAYLIST_ID") or config.get("playlist_id", "")
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -98,5 +116,8 @@ def run():
 
     print("\n'ytm-ios-alarm' pipeline finished successfully.")
 
-if __name__ == "__main__":
+def main():
     run()
+
+if __name__ == "__main__":
+    main()

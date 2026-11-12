@@ -30,35 +30,55 @@ Automated CI/CD audio pipeline that fetches your top listened-to tracks on YouTu
 
 ---
 
-## 🚀 Quick Start
+## ⚡ Quick Ways to Try
 
-### 1. Requirements
-Ensure Python 3.10+ is installed.
-Install dependencies:
-```powershell
-pip install -r requirements.txt
+### Option 1: 1-Click Cloud Automation (Zero Installation)
+Anyone can use this without installing Python or FFmpeg:
+1. **Fork this repository** to your GitHub account.
+2. In YouTube Music, create an **Unlisted** playlist with your favorite alarm songs and copy the link.
+3. In your forked repository: go to **Settings** → **Secrets and variables** → **Actions** → **Variables** tab.
+4. Add variable:
+   * **Name**: `YTM_PLAYLIST_ID`
+   * **Value**: Your playlist URL or ID.
+5. Go to the **Actions** tab and click **Run workflow**. Your daily alarm snippet will automatically be built and published to:
+   ```text
+   https://github.com/<YOUR_USERNAME>/ytm-ios-alarm/releases/latest/download/alarm.m4a
+   ```
+
+---
+
+### Option 2: Install as a Python CLI Tool
+Install directly from GitHub into any Python environment:
+
+```bash
+pip install git+https://github.com/Enzozozozo/ytm-ios-alarm.git
+```
+*(Requires `ffmpeg` installed on your machine).*
+
+Run from anywhere in your terminal:
+```bash
+# Generate 30s chorus from an unlisted/public playlist
+ytm-ios-alarm --playlist "https://music.youtube.com/playlist?list=PL..."
+
+# Customize duration and output location
+ytm-ios-alarm --playlist "PL..." --duration 45 --output-dir ~/Desktop
 ```
 
-You also need `ffmpeg`. If you don't have it on Windows, you can install it via Chocolatey or Winget:
-```powershell
-winget install Gyan.FFmpeg
-# or
-choco install ffmpeg
+---
+
+### Option 3: Run with Docker
+No local Python or FFmpeg installation needed:
+
+```bash
+docker run --rm \
+  -e YTM_PLAYLIST_ID="https://music.youtube.com/playlist?list=PL..." \
+  -v $(pwd)/output:/app/output \
+  ghcr.io/enzozozozo/ytm-ios-alarm:latest
 ```
 
-### 2. Configuration (`config.json`)
-Copy `config.example.json` to `config.json` and adjust:
-- `icloud_sync_dir`: Path to your iCloud Drive Shortcuts folder (defaults to `./output` if not using iCloud Windows app).
-- `snippet_duration_sec`: 30 (default duration for an alarm snippet).
-- `top_n`: 7.
+---
 
-### 3. YouTube Music Auth Setup
-YouTube Music requires authentication to view your personal listening history and top tracks:
-Run the helper:
-```powershell
-python auth_setup.py
-```
-This will guide you to paste your request headers from `music.youtube.com` into `browser_headers.txt` to generate `oauth.json`.
+## 🛠️ Local Development & Advanced Setup
 
 ---
 

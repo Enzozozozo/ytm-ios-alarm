@@ -3,9 +3,12 @@
 venv/
 ENV/
 
-# Python bytecode
+# Python bytecode & packaging
 __pycache__/
 *.py[cod]
+*.egg-info/
+dist/
+build/
 
 # Secrets & Local credentials
 oauth.json

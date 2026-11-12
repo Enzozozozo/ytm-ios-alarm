@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ytm-ios-alarm"
+version = "1.0.0"
+description = "Automated CI/CD pipeline extracting peak chorus segments from YouTube Music into dynamic iOS alarms."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Enzozozozo"}
+]
+keywords = [
+    "youtube-music",
+    "alarm",
+    "ios",
+    "shortcuts",
+    "audio-processing",
+    "yt-dlp",
+    "ffmpeg",
+    "automation"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+dependencies = [
+    "ytmusicapi>=1.7.0",
+    "yt-dlp>=2024.0.0",
+    "pydub>=0.25.1",
+]
+
+[project.scripts]
+ytm-ios-alarm = "main:main"
+
+[tool.setuptools]
+py-modules = ["main", "scraper", "downloader", "processor", "auth_setup"]
