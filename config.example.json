@@ -1,0 +1,13 @@
+{
+  "top_songs_count": 7,
+  "snippet_duration_seconds": 30,
+  "fade_in_ms": 1500,
+  "fade_out_ms": 2000,
+  "output_dir": "./output",
+  "icloud_sync_dir": "C:/Users/tayen/iCloudDrive/Shortcuts",
+  "auth_file": "oauth.json",
+  "selection_strategy": "peak_energy",
+  "fallback_songs": [
+    "https://music.youtube.com/watch?v=dQw4w9WgXcQ"
+  ]
+}

@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Secrets & Local credentials
+oauth.json
+browser_headers.txt
+config.json
+
+# Media artifacts & temporary downloads
+downloads/
+output/
+*.m4a
+*.m4r
+*.opus
+*.webm
+*.mp3
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
