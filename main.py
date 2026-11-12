@@ -57,7 +57,8 @@ def run():
     print(f"\n[Selecting Top Track]: {target_song['title']} ({target_song['url']})")
 
     # 3. Download Audio
-    downloader = AudioDownloader(download_dir="./downloads")
+    delay_sec = config.get("download_delay_seconds", 3)
+    downloader = AudioDownloader(download_dir="./downloads", delay_seconds=delay_sec)
     raw_audio_path = downloader.download_track(target_song['url'], output_name="target_track")
 
     if not raw_audio_path or not os.path.exists(raw_audio_path):

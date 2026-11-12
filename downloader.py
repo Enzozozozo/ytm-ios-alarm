@@ -1,30 +1,40 @@
 import os
+import time
 import logging
 from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 class AudioDownloader:
-    def __init__(self, download_dir: str = "./downloads"):
+    def __init__(self, download_dir: str = "./downloads", delay_seconds: int = 3):
         self.download_dir = download_dir
+        self.delay_seconds = delay_seconds
         os.makedirs(self.download_dir, exist_ok=True)
 
     def download_track(self, video_url: str, output_name: str) -> Optional[str]:
         """
-        Downloads the best audio stream of a YouTube / YouTube Music track.
+        Downloads only the audio stream of a YouTube / YouTube Music track,
+        with a rate-limiting delay to avoid bot detection.
         Returns the path to the downloaded audio file.
         """
         output_template = os.path.join(self.download_dir, f"{output_name}.%(ext)s")
         
+        if self.delay_seconds > 0:
+            logging.info(f"Pausing for {self.delay_seconds}s before fetching audio...")
+            time.sleep(self.delay_seconds)
+        
         try:
             import yt_dlp
             ydl_opts = {
-                'format': 'bestaudio/best',
+                'format': 'ba/bestaudio',  # Strictly audio-only streams; never download video
                 'outtmpl': output_template,
                 'quiet': True,
                 'no_warnings': True,
                 'extract_audio': True,
-                'noplaylist': True
+                'noplaylist': True,
+                'sleep_interval': self.delay_seconds,  # Pre-download sleep
+                'max_sleep_interval': self.delay_seconds + 2,  # Jitter to simulate human behavior
+                'sleep_interval_requests': 1  # Throttle individual HTTP requests
             }
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
