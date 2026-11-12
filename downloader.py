@@ -2,51 +2,53 @@ import os
 import time
 import logging
 from typing import Optional
+import yt_dlp
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
-class AudioDownloader:
-    def __init__(self, download_dir: str = "./downloads", delay_seconds: int = 3):
-        self.download_dir = download_dir
-        self.delay_seconds = delay_seconds
-        os.makedirs(self.download_dir, exist_ok=True)
+def download_audio(
+    video_url: str,
+    output_name: str,
+    download_dir: str = "./downloads",
+    delay_seconds: int = 0
+) -> Optional[str]:
+    os.makedirs(download_dir, exist_ok=True)
 
-    def download_track(self, video_url: str, output_name: str) -> Optional[str]:
-        """
-        Downloads only the audio stream of a YouTube / YouTube Music track,
-        with a rate-limiting delay to avoid bot detection.
-        Returns the path to the downloaded audio file.
-        """
-        output_template = os.path.join(self.download_dir, f"{output_name}.%(ext)s")
-        
-        if self.delay_seconds > 0:
-            time.sleep(self.delay_seconds)
-        
-        try:
-            import yt_dlp
-            ydl_opts = {
-                'format': 'bestaudio/best',  # Highest quality audio stream available
-                'outtmpl': output_template,
-                'quiet': True,
-                'no_warnings': True,
-                'extract_audio': True,
-                'noplaylist': True
-            }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(video_url, download=True)
-                downloaded_file = ydl.prepare_filename(info)
-                # In case yt-dlp converts or updates the ext
-                base, _ = os.path.splitext(downloaded_file)
-                for ext in ['.m4a', '.webm', '.opus', '.mp3']:
-                    candidate = base + ext
-                    if os.path.exists(candidate):
-                        return candidate
-                if os.path.exists(downloaded_file):
-                    return downloaded_file
-        except ImportError:
-            logging.error("yt-dlp is not installed. Run 'pip install yt-dlp'")
-        except Exception as e:
-            logging.error(f"Failed to download audio for {video_url}: {e}")
-            
-        return None
+    # Purge stale files with this candidate prefix to prevent cache poisoning
+    for ext in ('.m4a', '.webm', '.opus', '.mp3', '.part'):
+        stale_file = os.path.join(download_dir, f"{output_name}{ext}")
+        if os.path.exists(stale_file):
+            try:
+                os.remove(stale_file)
+            except OSError:
+                pass
+
+    if delay_seconds > 0:
+        time.sleep(delay_seconds)
+
+    output_template = os.path.join(download_dir, f"{output_name}.%(ext)s")
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': output_template,
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=True)
+            if not info:
+                return None
+            downloaded_file = ydl.prepare_filename(info)
+            base, _ = os.path.splitext(downloaded_file)
+            for ext in ('.m4a', '.webm', '.opus', '.mp3'):
+                candidate = base + ext
+                if os.path.exists(candidate):
+                    return candidate
+            if os.path.exists(downloaded_file):
+                return downloaded_file
+    except Exception as e:
+        logger.error(f"Download failed for {video_url}: {e}")
+
+    return None

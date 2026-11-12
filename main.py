@@ -2,19 +2,25 @@ import os
 import sys
 import json
 import shutil
+import random
 import logging
 import argparse
+import datetime
+from typing import Dict, Any
+
+from models import Track
+from scraper import fetch_tracks
+from downloader import download_audio
+from processor import create_alarm_snippet
+from publisher import upload_to_github_release
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from scraper import YTMScraper
-from downloader import AudioDownloader
-from processor import AudioProcessor
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("ytm-ios-alarm")
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -25,86 +31,12 @@ def parse_args():
     parser.add_argument("-d", "--duration", type=int, help="Snippet duration in seconds (default: 15)")
     parser.add_argument("-o", "--output-dir", help="Directory where alarm.m4a is saved (default: ./output)")
     parser.add_argument("-c", "--config", help="Custom config.json path")
-    parser.add_argument("-n", "--limit", type=int, help="Max candidate songs to evaluate (default: 7)")
-    parser.add_argument("-t", "--github-token", help="GitHub Personal Access Token to upload alarm.m4a to Releases")
+    parser.add_argument("-n", "--limit", type=int, help="Max candidate songs to evaluate (default: 50)")
+    parser.add_argument("-t", "--github-token", help="GitHub Personal Access Token to upload to Releases")
     parser.add_argument("--github-repo", help="Target GitHub repository (e.g. Enzozozozo/ytm-ios-alarm)")
     return parser.parse_args()
 
-def upload_to_github_release(file_path: str, repo: str, token: str, tag: str = "latest") -> bool:
-    """Uploads the generated alarm.m4a directly to GitHub Releases under tag 'latest'."""
-    import urllib.request
-    import urllib.error
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "ytm-ios-alarm"
-    }
-
-    # 1. Get or create the release for tag
-    release_url = f"https://api.github.com/repos/{repo}/releases/tags/{tag}"
-    release_data = None
-    try:
-        req = urllib.request.Request(release_url, headers=headers)
-        with urllib.request.urlopen(req) as resp:
-            release_data = json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            # Create release
-            create_url = f"https://api.github.com/repos/{repo}/releases"
-            payload = json.dumps({
-                "tag_name": tag,
-                "name": "Latest Daily Alarm",
-                "body": "Automated alarm snippet generated from playlist.",
-                "draft": False,
-                "prerelease": False
-            }).encode()
-            req = urllib.request.Request(create_url, data=payload, headers={**headers, "Content-Type": "application/json"})
-            with urllib.request.urlopen(req) as resp:
-                release_data = json.loads(resp.read().decode())
-        else:
-            logging.error(f"GitHub API error fetching release: {e}")
-            return False
-
-    if not release_data or "id" not in release_data:
-        logging.error("Failed to retrieve or create GitHub release.")
-        return False
-
-    # 2. Check if asset already exists and delete it
-    file_name = os.path.basename(file_path)
-    for asset in release_data.get("assets", []):
-        if asset.get("name") == file_name:
-            delete_url = f"https://api.github.com/repos/{repo}/releases/assets/{asset['id']}"
-            del_req = urllib.request.Request(delete_url, headers=headers, method="DELETE")
-            try:
-                with urllib.request.urlopen(del_req):
-                    pass
-            except Exception as e:
-                logging.debug(f"Could not delete old asset: {e}")
-
-    # 3. Upload new asset
-    upload_url = release_data.get("upload_url", "").split("{")[0]
-    upload_url = f"{upload_url}?name={file_name}"
-    
-    with open(file_path, "rb") as f:
-        data = f.read()
-
-    upload_headers = {
-        **headers,
-        "Content-Type": "audio/mp4",
-        "Content-Length": str(len(data))
-    }
-
-    req = urllib.request.Request(upload_url, data=data, headers=upload_headers, method="POST")
-    try:
-        with urllib.request.urlopen(req) as resp:
-            logging.info(f"Uploaded {file_name} -> https://github.com/{repo}/releases/latest/download/{file_name}")
-            return True
-    except Exception as e:
-        logging.error(f"Failed to upload asset to GitHub Release: {e}")
-        return False
-
-def load_config(config_path=None):
+def load_config(config_path: str = None) -> Dict[str, Any]:
     config_file = config_path or "config.json"
     if not os.path.exists(config_file):
         config_file = "config.example.json"
@@ -113,12 +45,12 @@ def load_config(config_path=None):
             return json.load(f)
     return {}
 
-def run(args=None):
+def run(args=None) -> int:
     if args is None:
         args = parse_args()
 
     config = load_config(args.config)
-    top_n = args.limit or config.get("top_songs_count", 7)
+    limit = args.limit or config.get("top_songs_count", 50)
     duration = args.duration or config.get("snippet_duration_seconds", 15)
     output_dir = args.output_dir or config.get("output_dir", "./output")
     icloud_dir = config.get("icloud_sync_dir", "")
@@ -128,76 +60,89 @@ def run(args=None):
     github_repo = args.github_repo or os.environ.get("GITHUB_REPOSITORY") or config.get("github_repo", "Enzozozozo/ytm-ios-alarm")
 
     os.makedirs(output_dir, exist_ok=True)
+    tracks = fetch_tracks(playlist_id, limit=limit)
 
-    # 1. Fetch Top Songs
-    scraper = YTMScraper()
-    top_songs = scraper.get_top_songs(limit=top_n, playlist_id=playlist_id)
-
-    if not top_songs:
-        logging.warning("No top songs could be retrieved. Checking fallback URLs...")
+    if not tracks:
         fallbacks = config.get("fallback_songs", [])
         for idx, url in enumerate(fallbacks):
-            top_songs.append({
-                "title": f"Fallback Track {idx + 1}",
-                "artist": "Various",
-                "video_id": f"fallback_{idx}",
-                "url": url
-            })
+            tracks.append(Track(
+                title=f"Fallback Track {idx + 1}",
+                artist="Various",
+                video_id=f"fallback_{idx}",
+                url=url
+            ))
 
-    if not top_songs:
-        logging.error("No songs available to process.")
-        sys.exit(1)
+    if not tracks:
+        logger.error("No songs available to process.")
+        return 1
 
-    # 2. Daily shuffle: Deterministic pseudorandom daily shuffle based on today's calendar date
-    import datetime
-    import random
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     rng = random.Random(today_str)
-    ordered_candidates = list(top_songs)
-    rng.shuffle(ordered_candidates)
-    logging.info(f"Loaded {len(top_songs)} tracks. Today's pick: {ordered_candidates[0]['title']}")
-
-    # 3. Resilient Track Processing Loop
-    downloader = AudioDownloader(download_dir="./downloads", delay_seconds=delay_sec)
-    processor = AudioProcessor(
-        snippet_duration_sec=duration,
-        fade_in_ms=config.get("fade_in_ms", 1000),
-        fade_out_ms=config.get("fade_out_ms", 1000)
-    )
+    ordered_tracks = list(tracks)
+    rng.shuffle(ordered_tracks)
+    logger.info(f"Loaded {len(tracks)} tracks. Today's pick: {ordered_tracks[0].title}")
 
     final_alarm_file = os.path.join(output_dir, "alarm.m4a")
-    success = False
+    fade_in_ms = config.get("fade_in_ms", 1000)
+    fade_out_ms = config.get("fade_out_ms", 1000)
+    downloads_dir = "./downloads"
 
-    for idx, target_song in enumerate(ordered_candidates, 1):
-        raw_audio_path = downloader.download_track(target_song['url'], output_name=f"track_candidate_{idx}")
+    success = False
+    for idx, target_song in enumerate(ordered_tracks, 1):
+        raw_audio_path = download_audio(
+            target_song.url,
+            output_name=f"track_candidate_{idx}",
+            download_dir=downloads_dir,
+            delay_seconds=delay_sec if idx > 1 else 0
+        )
         if not raw_audio_path or not os.path.exists(raw_audio_path):
-            logging.warning(f"Download failed for '{target_song['title']}'. Trying next candidate...")
+            logger.warning(f"Download failed for '{target_song.title}'. Trying next candidate...")
             continue
 
-        snippet_path = processor.extract_snippet(raw_audio_path, final_alarm_file)
+        snippet_path = create_alarm_snippet(
+            raw_audio_path,
+            final_alarm_file,
+            snippet_duration_sec=duration,
+            fade_in_ms=fade_in_ms,
+            fade_out_ms=fade_out_ms
+        )
+
+        # Cleanup raw audio to prevent unbounded disk growth
+        try:
+            os.remove(raw_audio_path)
+        except OSError:
+            pass
+
         if not snippet_path:
-            logging.warning(f"Audio snippet extraction failed for '{target_song['title']}'. Trying next candidate...")
+            logger.warning(f"Audio snippet extraction failed for '{target_song.title}'. Trying next candidate...")
             continue
 
         success = True
         break
 
     if not success:
-        logging.error("All candidate tracks failed processing.")
-        sys.exit(1)
+        logger.error("All candidate tracks failed processing.")
+        return 1
 
-    # 4. Upload to GitHub Releases if token is provided
     if github_token:
         upload_to_github_release(final_alarm_file, github_repo, github_token, tag="latest")
+        # Also upload daily.m4a
+        daily_alias = os.path.join(output_dir, "daily.m4a")
+        shutil.copyfile(final_alarm_file, daily_alias)
+        upload_to_github_release(daily_alias, github_repo, github_token, tag="latest")
 
-    # 5. Sync to iCloud Drive if path exists
     if icloud_dir and os.path.exists(icloud_dir):
-        dest_path = os.path.join(icloud_dir, "alarm.m4a")
-        shutil.copyfile(final_alarm_file, dest_path)
-        logging.info(f"Synced to iCloud: {dest_path}")
+        try:
+            dest_path = os.path.join(icloud_dir, "alarm.m4a")
+            shutil.copyfile(final_alarm_file, dest_path)
+            logger.info(f"Synced to iCloud: {dest_path}")
+        except Exception as e:
+            logger.warning(f"Could not copy to iCloud sync dir: {e}")
+
+    return 0
 
 def main():
-    run()
+    sys.exit(run())
 
 if __name__ == "__main__":
     main()

@@ -4,7 +4,7 @@
   "fade_in_ms": 1000,
   "fade_out_ms": 1000,
   "output_dir": "./output",
-  "icloud_sync_dir": "C:/Users/tayen/iCloudDrive/Shortcuts",
+  "icloud_sync_dir": "",
   "playlist_id": "",
   "github_repo": "Enzozozozo/ytm-ios-alarm",
   "github_token": "",
