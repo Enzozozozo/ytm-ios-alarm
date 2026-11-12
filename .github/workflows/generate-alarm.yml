@@ -36,7 +36,6 @@ jobs:
       - name: Run Alarm Pipeline
         env:
           YTM_PLAYLIST_ID: ${{ secrets.YTM_PLAYLIST_ID || vars.YTM_PLAYLIST_ID }}
-          YTM_OAUTH_JSON: ${{ secrets.YTM_OAUTH_JSON }}
         run: |
           python main.py
 

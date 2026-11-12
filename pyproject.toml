@@ -32,7 +32,6 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Analysis",
 ]
 dependencies = [
-    "ytmusicapi>=1.7.0",
     "yt-dlp>=2024.0.0",
     "pydub>=0.25.1",
 ]
@@ -41,4 +40,4 @@ dependencies = [
 ytm-ios-alarm = "main:main"
 
 [tool.setuptools]
-py-modules = ["main", "scraper", "downloader", "processor", "auth_setup"]
+py-modules = ["main", "scraper", "downloader", "processor"]

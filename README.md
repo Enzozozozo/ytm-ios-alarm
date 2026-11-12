@@ -9,7 +9,7 @@ Automated CI/CD audio pipeline that fetches your top listened-to tracks on YouTu
 ```
 [YouTube Music]
        │
-       ▼ (1. Fetch Top 7 Songs via ytmusicapi)
+       ▼ (1. Fetch Playlist Tracks via yt-dlp)
 [Metadata Extractor: track titles, video IDs]
        │
        ▼ (2. Audio Downloader: yt-dlp)

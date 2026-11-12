@@ -44,14 +44,13 @@ def run(args=None):
     duration = args.duration or config.get("snippet_duration_seconds", 30)
     output_dir = args.output_dir or config.get("output_dir", "./output")
     icloud_dir = config.get("icloud_sync_dir", "")
-    auth_file = config.get("auth_file", "oauth.json")
     delay_sec = config.get("download_delay_seconds", 3)
     playlist_id = args.playlist or os.environ.get("YTM_PLAYLIST_ID") or config.get("playlist_id", "")
 
     os.makedirs(output_dir, exist_ok=True)
 
     # 1. Fetch Top Songs
-    scraper = YTMScraper(auth_file=auth_file)
+    scraper = YTMScraper()
     top_songs = scraper.get_top_songs(limit=top_n, playlist_id=playlist_id)
 
     if not top_songs:

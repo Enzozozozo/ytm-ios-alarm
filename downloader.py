@@ -26,17 +26,12 @@ class AudioDownloader:
         try:
             import yt_dlp
             ydl_opts = {
-                'format': 'ba/bestaudio',  # Strictly audio-only streams; never download video
+                'format': 'bestaudio/best',  # Highest quality audio stream available
                 'outtmpl': output_template,
                 'quiet': True,
                 'no_warnings': True,
                 'extract_audio': True,
-                'noplaylist': True,
-                'extractor_args': {
-                    'youtube': {
-                        'player_client': ['ios', 'android']  # Emulates mobile clients to bypass web botguard challenges
-                    }
-                }
+                'noplaylist': True
             }
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

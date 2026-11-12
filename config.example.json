@@ -5,7 +5,6 @@
   "fade_out_ms": 2000,
   "output_dir": "./output",
   "icloud_sync_dir": "C:/Users/tayen/iCloudDrive/Shortcuts",
-  "auth_file": "oauth.json",
   "playlist_id": "",
   "download_delay_seconds": 3,
   "fallback_songs": [
