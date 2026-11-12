@@ -20,7 +20,6 @@ class AudioDownloader:
         output_template = os.path.join(self.download_dir, f"{output_name}.%(ext)s")
         
         if self.delay_seconds > 0:
-            logging.info(f"Pausing for {self.delay_seconds}s before fetching audio...")
             time.sleep(self.delay_seconds)
         
         try:

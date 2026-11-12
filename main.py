@@ -78,9 +78,9 @@ def upload_to_github_release(file_path: str, repo: str, token: str, tag: str = "
             del_req = urllib.request.Request(delete_url, headers=headers, method="DELETE")
             try:
                 with urllib.request.urlopen(del_req):
-                    logging.info(f"Deleted previous release asset '{file_name}'")
+                    pass
             except Exception as e:
-                logging.warning(f"Could not delete old asset: {e}")
+                logging.debug(f"Could not delete old asset: {e}")
 
     # 3. Upload new asset
     upload_url = release_data.get("upload_url", "").split("{")[0]
@@ -98,8 +98,7 @@ def upload_to_github_release(file_path: str, repo: str, token: str, tag: str = "
     req = urllib.request.Request(upload_url, data=data, headers=upload_headers, method="POST")
     try:
         with urllib.request.urlopen(req) as resp:
-            print(f"\n🚀 Successfully uploaded {file_name} to GitHub Release!")
-            print(f"👉 Direct download link for iPhone: https://github.com/{repo}/releases/latest/download/{file_name}")
+            logging.info(f"Uploaded {file_name} -> https://github.com/{repo}/releases/latest/download/{file_name}")
             return True
     except Exception as e:
         logging.error(f"Failed to upload asset to GitHub Release: {e}")
@@ -117,10 +116,6 @@ def load_config(config_path=None):
 def run(args=None):
     if args is None:
         args = parse_args()
-
-    print("=" * 60)
-    print("Starting 'ytm-ios-alarm' Pipeline")
-    print("=" * 60)
 
     config = load_config(args.config)
     top_n = args.limit or config.get("top_songs_count", 7)
@@ -150,22 +145,17 @@ def run(args=None):
             })
 
     if not top_songs:
-        logging.error("No songs available to process. Exiting.")
+        logging.error("No songs available to process.")
         sys.exit(1)
 
-    print(f"\n[Found {len(top_songs)} Candidate Songs]:")
-    for i, s in enumerate(top_songs, 1):
-        print(f"  {i}. {s['title']} - {s['artist']}")
-
     # 2. Daily shuffle: Deterministic pseudorandom daily shuffle based on today's calendar date
-    # Ensures a fresh random track each day while being idempotent across runs on the same date.
     import datetime
     import random
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     rng = random.Random(today_str)
     ordered_candidates = list(top_songs)
     rng.shuffle(ordered_candidates)
-    print(f"\n[Today's Daily Shuffle Selection ({today_str})]: {ordered_candidates[0]['title']}")
+    logging.info(f"Loaded {len(top_songs)} tracks. Today's pick: {ordered_candidates[0]['title']}")
 
     # 3. Resilient Track Processing Loop
     downloader = AudioDownloader(download_dir="./downloads", delay_seconds=delay_sec)
@@ -179,8 +169,6 @@ def run(args=None):
     success = False
 
     for idx, target_song in enumerate(ordered_candidates, 1):
-        print(f"\n[Attempting Track {idx}/{len(ordered_candidates)}]: {target_song['title']} ({target_song['url']})")
-        
         raw_audio_path = downloader.download_track(target_song['url'], output_name=f"track_candidate_{idx}")
         if not raw_audio_path or not os.path.exists(raw_audio_path):
             logging.warning(f"Download failed for '{target_song['title']}'. Trying next candidate...")
@@ -191,7 +179,6 @@ def run(args=None):
             logging.warning(f"Audio snippet extraction failed for '{target_song['title']}'. Trying next candidate...")
             continue
 
-        print(f"\n✅ Successfully generated alarm snippet from: {target_song['title']}")
         success = True
         break
 
@@ -201,19 +188,13 @@ def run(args=None):
 
     # 4. Upload to GitHub Releases if token is provided
     if github_token:
-        print(f"\n☁️ Uploading alarm snippet to GitHub Release ({github_repo})...")
         upload_to_github_release(final_alarm_file, github_repo, github_token, tag="latest")
 
     # 5. Sync to iCloud Drive if path exists
     if icloud_dir and os.path.exists(icloud_dir):
         dest_path = os.path.join(icloud_dir, "alarm.m4a")
         shutil.copyfile(final_alarm_file, dest_path)
-        print(f"☁️ Synced to iCloud Shortcuts directory: {dest_path}")
-    else:
-        print(f"ℹ️ iCloud directory '{icloud_dir}' not detected or not configured.")
-        print(f"   Exported alarm artifact ready at: {final_alarm_file}")
-
-    print("\n'ytm-ios-alarm' pipeline finished successfully.")
+        logging.info(f"Synced to iCloud: {dest_path}")
 
 def main():
     run()

@@ -43,14 +43,13 @@ class AudioProcessor:
         """
         try:
             from pydub import AudioSegment
-            logging.info(f"Loading {audio_file_path} for 15s peak dB snippet extraction...")
             audio = AudioSegment.from_file(audio_file_path)
 
             window_ms = self.snippet_duration_sec * 1000
             start_ms, peak_db = self.find_peak_energy_window(audio, window_ms)
             end_ms = min(len(audio), start_ms + window_ms)
 
-            logging.info(f"15s peak loudness window: {start_ms / 1000:.1f}s - {end_ms / 1000:.1f}s (Mean loudness: {peak_db:.1f} dBFS)")
+            logging.info(f"Peak window: {start_ms / 1000:.1f}s - {end_ms / 1000:.1f}s ({peak_db:.1f} dBFS)")
             snippet = audio[start_ms:end_ms]
 
             # Apply smooth crossfades
@@ -65,7 +64,6 @@ class AudioProcessor:
             snippet.export(tmp_path, format="ipod")
             os.replace(tmp_path, output_path)
 
-            logging.info(f"Alarm snippet saved to: {output_path}")
             return output_path
         except Exception as e:
             logging.error(f"Error processing audio snippet: {e}")

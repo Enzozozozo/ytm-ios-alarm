@@ -38,7 +38,6 @@ class YTMScraper:
             return songs
 
         playlist_url = self.normalize_playlist_url(playlist_id)
-        logging.info(f"Extracting candidate tracks from: {playlist_url}")
 
         try:
             import yt_dlp
@@ -87,8 +86,6 @@ class YTMScraper:
                         "url": url,
                         "duration_seconds": entry.get('duration') or 0
                     })
-
-                logging.info(f"Loaded {len(songs)} track(s) from '{info.get('title', 'Unknown')}'")
         except Exception as e:
             logging.error(f"Failed to extract playlist: {e}")
 
