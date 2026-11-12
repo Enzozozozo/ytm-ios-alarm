@@ -66,18 +66,6 @@ ytm-ios-alarm --playlist "PL..." --duration 45 --output-dir ~/Desktop
 
 ---
 
-### Option 3: Run with Docker
-No local Python or FFmpeg installation needed:
-
-```bash
-docker run --rm \
-  -e YTM_PLAYLIST_ID="https://music.youtube.com/playlist?list=PL..." \
-  -v $(pwd)/output:/app/output \
-  ghcr.io/enzozozozo/ytm-ios-alarm:latest
-```
-
----
-
 ## 🛠️ Local Development & Advanced Setup
 
 ---
