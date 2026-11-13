@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument("-n", "--limit", type=int, help="Max candidate songs to evaluate (default: 50)")
     parser.add_argument("-t", "--github-token", help="GitHub Personal Access Token to upload to Releases")
     parser.add_argument("--github-repo", help="Target GitHub repository (e.g. Enzozozozo/ytm-ios-alarm)")
+    parser.add_argument("-f", "--force", action="store_true", help="Force update even if already run today")
     return parser.parse_args()
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
@@ -60,6 +61,18 @@ def run(args=None) -> int:
     github_repo = args.github_repo or os.environ.get("GITHUB_REPOSITORY") or config.get("github_repo", "Enzozozozo/ytm-ios-alarm")
 
     os.makedirs(output_dir, exist_ok=True)
+
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    state_file = os.path.join(output_dir, ".last_run")
+    if not getattr(args, "force", False) and os.path.exists(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as f:
+                if f.read().strip() == today_str:
+                    logger.info(f"Already updated for today ({today_str}). Skipping.")
+                    return 0
+        except OSError:
+            pass
+
     tracks = fetch_tracks(playlist_id, limit=limit)
 
     if not tracks:
@@ -126,10 +139,15 @@ def run(args=None) -> int:
 
     if github_token:
         upload_to_github_release(final_alarm_file, github_repo, github_token, tag="latest")
-        # Also upload daily.m4a
         daily_alias = os.path.join(output_dir, "daily.m4a")
         shutil.copyfile(final_alarm_file, daily_alias)
         upload_to_github_release(daily_alias, github_repo, github_token, tag="latest")
+
+    try:
+        with open(state_file, "w", encoding="utf-8") as f:
+            f.write(today_str)
+    except OSError:
+        pass
 
     if icloud_dir and os.path.exists(icloud_dir):
         try:

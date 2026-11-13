@@ -7,7 +7,7 @@ if errorlevel 1 (
     )
 )
 cd /d "%~dp0"
-".venv\Scripts\python.exe" main.py
+".venv\Scripts\python.exe" main.py --force
 echo.
 pause
 endlocal

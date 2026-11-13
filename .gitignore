@@ -24,6 +24,7 @@ output/
 *.webm
 *.mp3
 *.log
+.last_run
 
 # IDE & OS
 .vscode/

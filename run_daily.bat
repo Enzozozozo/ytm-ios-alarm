@@ -8,5 +8,5 @@ if errorlevel 1 (
     )
 )
 cd /d "%~dp0"
-".venv\Scripts\python.exe" -u main.py >> "task_scheduler.log" 2>&1
+".venv\Scripts\python.exe" -u main.py <nul >> "task_scheduler.log" 2>&1
 endlocal
