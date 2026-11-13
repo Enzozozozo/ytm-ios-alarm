@@ -1,3 +1,4 @@
+import time
 import logging
 import urllib.parse
 from typing import List, Optional
@@ -30,40 +31,45 @@ def fetch_tracks(playlist_id: str, limit: int = 50) -> List[Track]:
     }
 
     tracks: List[Track] = []
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = None
-            try:
-                info = ydl.extract_info(playlist_url, download=False)
-            except Exception as err:
-                if any(x in playlist_id for x in ("v=", "youtu.be/", "/watch")):
-                    ydl_single = yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True, 'noplaylist': True})
-                    info = ydl_single.extract_info(playlist_id, download=False)
-                else:
-                    raise err
+    for attempt in range(1, 4):
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = None
+                try:
+                    info = ydl.extract_info(playlist_url, download=False)
+                except Exception as err:
+                    if any(x in playlist_id for x in ("v=", "youtu.be/", "/watch")):
+                        ydl_single = yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True, 'noplaylist': True})
+                        info = ydl_single.extract_info(playlist_id, download=False)
+                    else:
+                        raise err
 
-            if not info:
+                if not info:
+                    return tracks
+
+                raw_entries = info.get('entries')
+                entries = [info] if raw_entries is None else list(raw_entries)
+
+                for entry in entries[:limit]:
+                    if not entry:
+                        continue
+                    video_id = entry.get('id', '')
+                    url = entry.get('url') or f"https://www.youtube.com/watch?v={video_id}"
+                    if not url.startswith("http"):
+                        url = f"https://www.youtube.com/watch?v={url}"
+
+                    tracks.append(Track(
+                        title=entry.get('title', 'Unknown Track'),
+                        artist=entry.get('uploader') or entry.get('channel') or entry.get('artist') or 'Various',
+                        video_id=video_id,
+                        url=url,
+                        duration_seconds=entry.get('duration') or 0
+                    ))
                 return tracks
-
-            raw_entries = info.get('entries')
-            entries = [info] if raw_entries is None else list(raw_entries)
-
-            for entry in entries[:limit]:
-                if not entry:
-                    continue
-                video_id = entry.get('id', '')
-                url = entry.get('url') or f"https://www.youtube.com/watch?v={video_id}"
-                if not url.startswith("http"):
-                    url = f"https://www.youtube.com/watch?v={url}"
-
-                tracks.append(Track(
-                    title=entry.get('title', 'Unknown Track'),
-                    artist=entry.get('uploader') or entry.get('channel') or entry.get('artist') or 'Various',
-                    video_id=video_id,
-                    url=url,
-                    duration_seconds=entry.get('duration') or 0
-                ))
-    except Exception as e:
-        logger.error(f"Failed to extract playlist tracks: {e}")
+        except Exception as e:
+            if attempt < 3:
+                time.sleep(5)
+            else:
+                logger.error(f"Failed to extract playlist tracks: {e}")
 
     return tracks
